@@ -1,7 +1,7 @@
 """Pinned description of the Growatt ShineServer Public API this client was written against.
 
 The MCP server has no way to ask Growatt which API revision it is talking to, so the
-contract is pinned here instead. ``tests/test_api_contract.py`` checks that every request
+contract is pinned here instead. ``tests/contract/test_api_contract.py`` checks that every request
 the client sends matches the endpoints and parameter names in the pinned Postman collection,
 and that the collection file itself has not changed without this pin being updated.
 

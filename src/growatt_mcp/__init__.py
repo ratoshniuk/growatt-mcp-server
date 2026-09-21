@@ -1,23 +1,28 @@
+"""MCP server for Growatt solar inverters, batteries and grid data."""
+
 from __future__ import annotations
 
-import os
-import sys
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 
-from mcp.server.fastmcp import FastMCP
+try:
+    __version__ = _pkg_version("growatt-mcp")
+except PackageNotFoundError:  # pragma: no cover - only when running from a raw checkout
+    __version__ = "0.0.0"
 
-from . import tools
-from .client import GrowattClient
+from .api import GrowattAPIError, GrowattClient, GrowattError, GrowattHTTPError
+from .config import ConfigError, Settings, load_settings
+from .server import create_app, main
 
-
-def main() -> None:
-    token = os.environ.get("GROWATT_TOKEN")
-    if not token:
-        print("Error: GROWATT_TOKEN environment variable is required.", file=sys.stderr)
-        print("Get your token from the ShinePhone app: Me > username > API Token", file=sys.stderr)
-        sys.exit(1)
-
-    app = FastMCP("Growatt Solar v0.1")
-    client = GrowattClient(token=token)
-    tools.configure(client)
-    tools.register_tools(app)
-    app.run()
+__all__ = [
+    "ConfigError",
+    "GrowattAPIError",
+    "GrowattClient",
+    "GrowattError",
+    "GrowattHTTPError",
+    "Settings",
+    "__version__",
+    "create_app",
+    "load_settings",
+    "main",
+]

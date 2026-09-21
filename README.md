@@ -1,30 +1,90 @@
 # Growatt MCP Server
 
 [![CI](https://github.com/ratoshniuk/growatt-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/ratoshniuk/growatt-mcp-server/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![MCP](https://img.shields.io/badge/protocol-MCP-6f42c1.svg)](https://modelcontextprotocol.io)
 
-An [MCP](https://modelcontextprotocol.io) server that lets AI assistants (Claude Code, Claude Desktop, Cursor, and any other MCP client) read and control your Growatt solar installation through the official Growatt ShineServer Public API.
+An [MCP](https://modelcontextprotocol.io) server that lets AI assistants (Claude Code, Claude Desktop, Cursor, VS Code, Codex, Gemini CLI and any other MCP client) read and control a Growatt solar installation through the official **Growatt ShineServer Public API**.
 
-You can ask things like "how much did my panels generate today?", "what is the battery SOC?", "compare today with yesterday", or "set the discharge cut-off to 15%", and the assistant will call the right API for you.
+Ask things like "how much did my panels generate today?", "what is the battery SOC?", "compare today with yesterday hour by hour", or "set the discharge cut-off to 15%", and the assistant calls the right endpoint for you.
 
-## What it can do
+- **Complete API coverage.** All 26 endpoints of Growatt's published Postman collection are implemented and exposed as tools.
+- **Contract-tested.** Every request is verified against the pinned API collection, so upstream changes are caught by CI, not by users.
+- **Typed, tested, linted.** `mypy --strict`, 100+ unit tests, ruff, and a server start-up smoke test on Python 3.11 to 3.13.
+- **Safe defaults.** Errors from Growatt come back as structured JSON the assistant can read, and every state-changing tool says so in its description.
 
-| Tool | Description |
-|---|---|
-| `get_plants` | List plants (installations) on your account |
-| `get_plant_details` | Basic info about a plant |
-| `get_plant_data` | Today's / monthly / yearly / total energy and current power for a plant |
-| `get_plant_energy` | Daily, monthly or yearly energy history (max 7 days per request) |
-| `get_devices` | List devices (inverters, dataloggers) for a plant or the whole account |
-| `get_device_info` | Device details |
-| `get_device_last_data` | Latest real-time readings: PV power, load, grid import/export, battery SOC, temperatures, faults |
-| `get_device_history` | 5-minute readings for a single device for one day |
-| `check_device_sn` | Look up a serial number |
-| `set_device_on_off` | Turn a device on or off |
-| `set_device_power` | Set active power limit |
-| `read_device_parameter` | Read a VPP parameter (e.g. discharge cut-off SOC) |
-| `set_device_parameter` | Write a VPP parameter |
+## Table of contents
 
-The last four tools change the state of your inverter. Only enable them for an assistant you trust, and review what it is about to do before confirming.
+- [Tools](#tools)
+- [Requirements](#requirements)
+- [Getting a Growatt API token](#getting-a-growatt-api-token)
+- [Installation](#installation)
+- [Connecting to an MCP client](#connecting-to-an-mcp-client)
+- [Configuration](#configuration)
+- [Example prompts](#example-prompts)
+- [Notes and gotchas](#notes-and-gotchas)
+- [API version and contract testing](#api-version-and-contract-testing)
+- [Official Growatt resources](#official-growatt-resources)
+- [Project layout](#project-layout)
+- [Development](#development)
+- [Disclaimer](#disclaimer)
+- [License](#license)
+
+## Tools
+
+Tools marked **writes** change state on Growatt's side. Only enable them for an assistant you trust, and review what it is about to do before confirming.
+
+### Plants (power stations)
+
+| Tool | Endpoint | Description |
+|---|---|---|
+| `get_plants` | `GET /v1/plant/list` | Plants visible to the account |
+| `get_plant_details` | `POST /v1/plant/details` | Name, location, peak power, timezone |
+| `get_plant_data` | `GET /v1/plant/data` | Today's / monthly / yearly / total energy, current power |
+| `get_plant_energy` | `GET /v1/plant/energy` | Daily, monthly or yearly history (max 7 days per call) |
+| `get_user_plants` | `POST /v1/plant/user_plant_list` | Plants of a specific end user |
+| `add_plant` **writes** | `POST /v1/plant/add` | Create a plant for an end user |
+| `modify_plant` **writes** | `POST /v1/plant/modify` | Rename a plant or change its currency |
+
+### Devices
+
+| Tool | Endpoint | Description |
+|---|---|---|
+| `get_devices` | `GET /v1/device/list`, `POST /v4/new-api/queryDeviceList` | Devices of a plant, or all devices paginated |
+| `get_device_info` | `POST /v4/new-api/queryDeviceInfo` | Model, firmware, configured settings |
+| `get_device_last_data` | `POST /v4/new-api/queryLastData` | Real-time PV, load, grid, battery SOC, temperatures, faults |
+| `get_device_history` | `POST /v4/new-api/queryHistoricalData` | Five-minute readings for one day |
+| `check_device_sn` | `GET /v1/device/check/sn` | Device type and registration status of a serial |
+| `get_dataloggers` | `GET /v1/device/datalogger/list` | ShineWiFi / ShineLAN sticks on a plant |
+| `add_datalogger` **writes** | `POST /v1/device/datalogger/add` | Attach a datalogger to a plant |
+| `add_storage_device` **writes** | `POST /v1/device/storage/add` | Attach a storage device to a plant |
+
+### Control
+
+| Tool | Endpoint | Description |
+|---|---|---|
+| `set_device_on_off` **writes** | `POST /v4/new-api/setOnOrOff` | Switch a device on or off |
+| `set_device_power` **writes** | `POST /v4/new-api/setPower` | Active power limit (percent, or watts for NOAH/NEXA) |
+| `read_device_parameter` | `POST /v4/new-api/readVppParameter` | Read a VPP parameter, e.g. discharge cut-off SOC |
+| `set_device_parameter` **writes** | `POST /v4/new-api/setVppParameter` | Write a VPP parameter or time schedule |
+
+### MAX-series inverters
+
+| Tool | Endpoint | Description |
+|---|---|---|
+| `get_max_data` | `GET /v1/device/max/max_data_info` | Latest data for one MAX inverter |
+| `get_max_batch_data` | `POST /v1/device/max/maxs_data` | Latest data for several MAX inverters |
+| `set_max_parameter` **writes** | `POST /v1/maxSet` | Write a register on a MAX inverter |
+
+### Users (installer / distributor accounts)
+
+| Tool | Endpoint | Description |
+|---|---|---|
+| `list_users` | `GET /v1/user/c_user_list` | End-user accounts managed by this account |
+| `check_user` | `POST /v1/user/check_user` | Whether a user name exists |
+| `register_user` **writes** | `POST /v1/user/user_register` | Create an end-user account |
+| `modify_user` **writes** | `POST /v1/user/modify` | Update an end-user's mobile number |
 
 ## Requirements
 
@@ -56,13 +116,14 @@ cd growatt-mcp
 uv sync
 ```
 
-Quick check that the server starts (it speaks MCP over stdio, so it will wait for input; press Ctrl+C to exit):
+Quick check that the server starts (it speaks MCP over stdio, so it waits for input; press Ctrl+C to exit):
 
 ```bash
 GROWATT_TOKEN=your_token uv run growatt-mcp
+uv run growatt-mcp --version
 ```
 
-If the token is missing the server exits with an error explaining where to get one.
+If the token is missing the server exits with code 2 and explains where to get one.
 
 Without uv:
 
@@ -270,7 +331,9 @@ GROWATT_TOKEN=your_token npx @modelcontextprotocol/inspector \
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `GROWATT_TOKEN` | yes | | ShinePhone API token |
-| `GROWATT_BASE_URL` | no | `https://openapi.growatt.com` | Override for regional API hosts, e.g. `https://openapi-us.growatt.com` |
+| `GROWATT_REGION` | no | `global` | Picks the regional API host: `global` / `eu` (`openapi.growatt.com`), `cn` (`openapi-cn.growatt.com`), `us` (`openapi-us.growatt.com`) |
+| `GROWATT_BASE_URL` | no | | Explicit API host; overrides `GROWATT_REGION` |
+| `GROWATT_TIMEOUT` | no | `30` | HTTP timeout in seconds |
 
 ## Example prompts
 
@@ -278,24 +341,76 @@ GROWATT_TOKEN=your_token npx @modelcontextprotocol/inspector \
 - "Get the latest data from inverter YOUR_DEVICE_SN (type `min`) and tell me the battery SOC and grid import."
 - "Fetch the 5-minute history for today and yesterday and compare hourly PV, load and battery charge."
 - "Read `set_param_23` on my inverter." (discharge cut-off SOC)
+- "Which dataloggers are attached to plant 123?"
 
 ## Notes and gotchas
 
 - **Device types.** Most tools need a `device_type` such as `min`, `sph`, `spa`, `max`, `inv`, `wit`, `tlx`. `get_devices` returns the right value for each device.
 - **Timestamps in history data.** The `calendar` field is a Unix epoch built from the plant's local wall-clock interpreted as UTC+8. To get local time, treat the epoch as UTC and add 8 hours.
 - **"Today" counters undercount at night.** Fields like `etoUserToday` only accumulate while the inverter is running. On hybrid systems that idle overnight at the battery cut-off SOC, grid import from the meter is still visible in `pacToUserTotal` of the 5-minute history, so integrate that series for a true figure.
+- **Errors are data.** When Growatt rejects a call, the tool returns `{"error": {"type": "api", "code": ..., "message": ...}}` instead of failing, so the assistant can explain what went wrong.
 - **Rate limits.** The Growatt API throttles aggressive polling. Prefer `get_device_history` (one call per day) over repeated `get_device_last_data`.
 - **Date ranges.** `get_plant_energy` accepts at most 7 days per request; page through for longer periods.
 
-## API contract and versioning
+## API version and contract testing
 
-Growatt does not version the ShineServer Public API, and the server has no endpoint to report which revision it is talking to. This project pins the API contract instead:
+Growatt does not publish version numbers for the ShineServer Public API, and there is no endpoint that reports which revision a server runs. This project pins the contract instead:
 
-- `tests/fixtures/shineserver_public.postman_collection.json` is the Postman collection published by Growatt (tokens stripped).
-- `src/growatt_mcp/api_contract.py` records the collection's Postman id, capture date and SHA-256.
-- `tests/test_api_contract.py` sends every client request through a mock transport and checks that its method, path and parameter names exist in the collection. It also fails if the collection contains endpoints the client neither implements nor lists as intentionally skipped, and if the fixture changes without the pin being updated.
+| | |
+|---|---|
+| API | Growatt ShineServer Public API (v1 and v4 "new-api" endpoints) |
+| Source | Postman collection **ShineServer Public** published by Growatt, id `bcc659f1-4ba7-4c5d-a7ad-526d3c8c8fd9` |
+| Captured | 2026-09-21 |
+| Pinned in | [`src/growatt_mcp/api/contract.py`](src/growatt_mcp/api/contract.py) (Postman id, capture date, SHA-256 of the fixture) |
+| Fixture | [`tests/fixtures/shineserver_public.postman_collection.json`](tests/fixtures/shineserver_public.postman_collection.json) (tokens stripped) |
+| Endpoints | 26 in the collection, 26 implemented |
 
-To pick up a newer collection, replace the fixture, run `uv run pytest`, review what changed, then update the pin. The failing tests tell you exactly which endpoints or parameters moved.
+[`tests/contract/test_api_contract.py`](tests/contract/test_api_contract.py) sends every client method through a mock transport and checks that its HTTP method, path and parameter names exist in the collection. It also fails if the collection contains an endpoint the client does not implement, if the client has a method the test table does not cover, or if the fixture changes without the pin being updated.
+
+To adopt a newer collection: export it from Postman, strip any real tokens, replace the fixture, run `uv run pytest`, review what the failing tests report, then update the pin and the changelog.
+
+## Official Growatt resources
+
+- Growatt: <https://en.growatt.com/>
+- ShineServer monitoring platform: <https://server.growatt.com/>
+- ShinePhone app (where the API token is issued): iOS App Store and Google Play, search "ShinePhone"
+- API documentation (linked from Growatt's Postman collection): <https://www.showdoc.com.cn/2598832417617967/11558377939801334>
+- Regional API hosts: `https://openapi.growatt.com` (global / Europe), `https://openapi-cn.growatt.com` (China), `https://openapi-us.growatt.com` (North America)
+- Community Postman workspace "Growatt Public": <https://www.postman.com/gold-water-163355/workspace/growatt-public>
+
+## Project layout
+
+```
+src/growatt_mcp/
+  __init__.py        package version and public exports
+  __main__.py        python -m growatt_mcp
+  config.py          Settings from GROWATT_* environment variables
+  server.py          create_app(), CLI entry point
+  api/               async client for the Growatt API
+    http.py          auth header, JSON decoding, error translation
+    errors.py        GrowattError, GrowattHTTPError, GrowattAPIError
+    client.py        GrowattClient facade: .users .plants .devices .control .max
+    users.py, plants.py, devices.py, control.py, max.py   one class per endpoint group
+    contract.py      pinned API contract (Postman id, date, SHA-256)
+  tools/             MCP tools, one module per endpoint group
+    _common.py       JSON rendering and error-to-JSON wrapper
+    plants.py, devices.py, control.py, max.py, users.py
+tests/
+  conftest.py        recording mock transport, client and app fixtures
+  unit/              config, server, api/*, tools/*
+  contract/          client requests vs the pinned Postman collection
+  fixtures/          sanitized Postman collection
+```
+
+The client is usable on its own, without MCP:
+
+```python
+from growatt_mcp import GrowattClient
+
+async with GrowattClient(token) as client:
+    plants = await client.plants.list()
+    latest = await client.devices.last_data("YOUR_DEVICE_SN", "min")
+```
 
 ## Development
 
@@ -304,19 +419,11 @@ uv sync --group dev
 uv run growatt-mcp        # run the server
 uv run ruff check .       # lint
 uv run ruff format .      # format
+uv run mypy               # type check (strict)
 uv run pytest             # tests
 ```
 
-CI runs lint, format check, tests and a server start-up smoke test on Python 3.11 to 3.13 for every push and pull request.
-
-Source layout:
-
-```
-src/growatt_mcp/
-  __init__.py   # entry point, reads GROWATT_TOKEN, starts FastMCP
-  client.py     # async httpx client for the Growatt v1 / v4 API
-  tools.py      # MCP tool definitions
-```
+CI runs lint, format check, mypy, tests and a server start-up smoke test on Python 3.11, 3.12 and 3.13 for every push and pull request. See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Disclaimer
 

@@ -9,10 +9,10 @@ An [MCP](https://modelcontextprotocol.io) server that lets AI assistants (Claude
 
 Ask things like "how much did my panels generate today?", "what is the battery SOC?", "compare today with yesterday hour by hour", or "set the discharge cut-off to 15%", and the assistant calls the right endpoint for you.
 
-- **Complete API coverage.** All 26 endpoints of Growatt's published Postman collection are implemented and exposed as tools.
-- **Contract-tested.** Every request is verified against the pinned API collection, so upstream changes are caught by CI, not by users.
-- **Typed, tested, linted.** `mypy --strict`, 100+ unit tests, ruff, and a server start-up smoke test on Python 3.11 to 3.13.
-- **Safe defaults.** Errors from Growatt come back as structured JSON the assistant can read, and every state-changing tool says so in its description.
+- **Complete API coverage.** All 27 documented endpoints are implemented and exposed as 26 tools.
+- **Contract-tested.** Every request is verified against a pinned endpoint contract, so upstream changes are caught by CI, not by users.
+- **Typed, tested, linted.** `mypy --strict`, 130+ tests, ruff, pip-audit, and a server start-up smoke test on Python 3.11 to 3.13.
+- **Safe by design.** State-changing tools carry MCP `readOnlyHint=false` / `destructiveHint=true` annotations and can be disabled with `GROWATT_READ_ONLY=1`. Errors from Growatt come back as structured JSON the assistant can read.
 
 ## Table of contents
 
@@ -33,7 +33,7 @@ Ask things like "how much did my panels generate today?", "what is the battery S
 
 ## Tools
 
-Tools marked **writes** change state on Growatt's side. Only enable them for an assistant you trust, and review what it is about to do before confirming.
+Tools marked **writes** change state on Growatt's side. They are annotated as non-read-only so MCP clients can ask for confirmation, and they disappear entirely when the server runs with `GROWATT_READ_ONLY=1`.
 
 ### Plants (power stations)
 
@@ -105,6 +105,8 @@ The token is issued in the **ShinePhone** mobile app (the same app you use to mo
 | Step 1 | Step 2 | Step 3 | Steps 4–5 |
 |---|---|---|---|
 | ![Dashboard](docs/images/1-dashboard.jpg) | ![Me screen](docs/images/2-me.jpg) | ![Profile](docs/images/3-profile.jpg) | ![API Token](docs/images/4-api-token.jpg) |
+
+Screenshots show Growatt's ShinePhone app and are used for illustration only.
 
 Keep the token private: it grants full read and write access to your installation, including inverter settings. If it leaks, open the same screen and tap **Reopen** to issue a new one.
 
@@ -332,8 +334,9 @@ GROWATT_TOKEN=your_token npx @modelcontextprotocol/inspector \
 |---|---|---|---|
 | `GROWATT_TOKEN` | yes | | ShinePhone API token |
 | `GROWATT_REGION` | no | `global` | Picks the regional API host: `global` / `eu` (`openapi.growatt.com`), `cn` (`openapi-cn.growatt.com`), `us` (`openapi-us.growatt.com`) |
-| `GROWATT_BASE_URL` | no | | Explicit API host; overrides `GROWATT_REGION` |
+| `GROWATT_BASE_URL` | no | | Explicit API host (https only); overrides `GROWATT_REGION` |
 | `GROWATT_TIMEOUT` | no | `30` | HTTP timeout in seconds |
+| `GROWATT_READ_ONLY` | no | `0` | Set to `1` to register only the read tools; the ten state-changing tools are not exposed at all |
 
 ## Example prompts
 
@@ -348,7 +351,7 @@ GROWATT_TOKEN=your_token npx @modelcontextprotocol/inspector \
 - **Device types.** Most tools need a `device_type` such as `min`, `sph`, `spa`, `max`, `inv`, `wit`, `tlx`. `get_devices` returns the right value for each device.
 - **Timestamps in history data.** The `calendar` field is a Unix epoch built from the plant's local wall-clock interpreted as UTC+8. To get local time, treat the epoch as UTC and add 8 hours.
 - **"Today" counters undercount at night.** Fields like `etoUserToday` only accumulate while the inverter is running. On hybrid systems that idle overnight at the battery cut-off SOC, grid import from the meter is still visible in `pacToUserTotal` of the 5-minute history, so integrate that series for a true figure.
-- **Errors are data.** When Growatt rejects a call, the tool returns `{"error": {"type": "api", "code": ..., "message": ...}}` instead of failing, so the assistant can explain what went wrong.
+- **Errors are data.** When a call fails, the tool returns `{"error": {"type": "api" | "http" | "transport" | "client", ...}}` instead of raising, so the assistant can explain what went wrong. Non-JSON HTTP error bodies are not forwarded.
 - **Rate limits.** The Growatt API throttles aggressive polling. Prefer `get_device_history` (one call per day) over repeated `get_device_last_data`.
 - **Date ranges.** `get_plant_energy` accepts at most 7 days per request; page through for longer periods.
 
@@ -359,15 +362,15 @@ Growatt does not publish version numbers for the ShineServer Public API, and the
 | | |
 |---|---|
 | API | Growatt ShineServer Public API (v1 and v4 "new-api" endpoints) |
-| Source | Postman collection **ShineServer Public** published by Growatt, id `bcc659f1-4ba7-4c5d-a7ad-526d3c8c8fd9` |
+| Documented by | community-maintained Postman collection **ShineServer Public** (workspace `gold-water-163355`, id `bcc659f1-4ba7-4c5d-a7ad-526d3c8c8fd9`), which links Growatt's own API documentation |
 | Captured | 2026-09-21 |
-| Pinned in | [`src/growatt_mcp/api/contract.py`](src/growatt_mcp/api/contract.py) (Postman id, capture date, SHA-256 of the fixture) |
-| Fixture | [`tests/fixtures/shineserver_public.postman_collection.json`](tests/fixtures/shineserver_public.postman_collection.json) (tokens stripped) |
-| Endpoints | 26 in the collection, 26 implemented |
+| Fixture | [`tests/fixtures/shineserver_public_endpoints.json`](tests/fixtures/shineserver_public_endpoints.json): methods, paths and parameter names only, derived from the collection. No example values, credentials or identifiers |
+| Pinned in | [`src/growatt_mcp/api/contract.py`](src/growatt_mcp/api/contract.py): source, capture date, SHA-256 of the fixture |
+| Coverage | 27 endpoints in the contract, 27 implemented, exposed as 26 tools |
 
-[`tests/contract/test_api_contract.py`](tests/contract/test_api_contract.py) sends every client method through a mock transport and checks that its HTTP method, path and parameter names exist in the collection. It also fails if the collection contains an endpoint the client does not implement, if the client has a method the test table does not cover, or if the fixture changes without the pin being updated.
+[`tests/contract/test_api_contract.py`](tests/contract/test_api_contract.py) sends every client method through a mock transport and checks that its HTTP method, path, and parameter names and placement (query string vs form body) exist in the contract. It also fails if the contract contains an endpoint the client does not implement, if the client has a method the test table does not cover, or if the fixture changes without the pin being updated.
 
-To adopt a newer collection: export it from Postman, strip any real tokens, replace the fixture, run `uv run pytest`, review what the failing tests report, then update the pin and the changelog.
+To adopt a newer collection, follow [CONTRIBUTING.md](CONTRIBUTING.md#updating-the-api-contract); the failing tests report exactly which endpoints or parameters changed.
 
 ## Official Growatt resources
 
@@ -376,7 +379,8 @@ To adopt a newer collection: export it from Postman, strip any real tokens, repl
 - ShinePhone app (where the API token is issued): iOS App Store and Google Play, search "ShinePhone"
 - API documentation (linked from Growatt's Postman collection): <https://www.showdoc.com.cn/2598832417617967/11558377939801334>
 - Regional API hosts: `https://openapi.growatt.com` (global / Europe), `https://openapi-cn.growatt.com` (China), `https://openapi-us.growatt.com` (North America)
-- Community Postman workspace "Growatt Public": <https://www.postman.com/gold-water-163355/workspace/growatt-public>
+- Growatt platform terms: <https://openapi.growatt.com/userTerms/termsOfUse_en.html>
+- Community Postman workspace "Growatt Public" (the source of the endpoint contract): <https://www.postman.com/gold-water-163355/workspace/growatt-public>
 
 ## Project layout
 
@@ -390,16 +394,18 @@ src/growatt_mcp/
     http.py          auth header, JSON decoding, error translation
     errors.py        GrowattError, GrowattHTTPError, GrowattAPIError
     client.py        GrowattClient facade: .users .plants .devices .control .max
-    users.py, plants.py, devices.py, control.py, max.py   one class per endpoint group
+    users.py, plants.py, devices.py, control.py, max_inverters.py   one class per endpoint group
     contract.py      pinned API contract (Postman id, date, SHA-256)
   tools/             MCP tools, one module per endpoint group
-    _common.py       JSON rendering and error-to-JSON wrapper
-    plants.py, devices.py, control.py, max.py, users.py
+    _common.py       Registrar (read/write annotations, read-only mode), shared parameter types, error-to-JSON wrapper
+    plants.py, devices.py, control.py, max_inverters.py, users.py
 tests/
   conftest.py        recording mock transport, client and app fixtures
   unit/              config, server, api/*, tools/*
   contract/          client requests vs the pinned Postman collection
-  fixtures/          sanitized Postman collection
+  fixtures/          endpoint contract (methods, paths, parameter names)
+scripts/
+  derive_contract.py regenerates the fixture from a Postman export
 ```
 
 The client is usable on its own, without MCP:
@@ -423,11 +429,11 @@ uv run mypy               # type check (strict)
 uv run pytest             # tests
 ```
 
-CI runs lint, format check, mypy, tests and a server start-up smoke test on Python 3.11, 3.12 and 3.13 for every push and pull request. See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
+CI runs lint, format check, mypy, tests, a server start-up smoke test on Python 3.11, 3.12 and 3.13, and pip-audit for every push and pull request. GitHub Actions are pinned to commit SHAs and Dependabot keeps them and the lockfile current. See [CONTRIBUTING.md](CONTRIBUTING.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Disclaimer
 
-This is an independent, community project. It is not affiliated with, endorsed by, or supported by Growatt. Use of the Growatt Public API is subject to Growatt's own terms. Commands that change inverter settings are executed at your own risk.
+This is an independent, community project. It is not affiliated with, endorsed by, or supported by Growatt. Growatt, ShineServer and ShinePhone are trademarks of Shenzhen Growatt New Energy Co., Ltd. Use of the Growatt Public API is subject to [Growatt's terms](https://openapi.growatt.com/userTerms/termsOfUse_en.html). Commands that change inverter settings are executed at your own risk. See [SECURITY.md](SECURITY.md) for the threat model and how to report issues.
 
 ## License
 

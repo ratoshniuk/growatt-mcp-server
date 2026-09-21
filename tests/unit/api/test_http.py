@@ -1,7 +1,9 @@
+import httpx
 import pytest
 
-from growatt_mcp.api import GrowattAPIError, GrowattError, GrowattHTTPError
-from growatt_mcp.api.http import check_api_error
+from growatt_mcp.api import GrowattAPIError, GrowattClient, GrowattError, GrowattHTTPError, GrowattTransportError
+from growatt_mcp.api.http import check_api_error, clean_params
+from growatt_mcp.config import Settings
 
 
 async def test_token_header_and_base_url(client, recorder):
@@ -38,12 +40,25 @@ async def test_http_error_raises(client, recorder):
         await client.plants.list()
     assert exc.value.status_code == 401
     assert "nope" in exc.value.body
+    assert "nope" not in str(exc.value), "body must not leak into the exception message"
 
 
 async def test_non_json_body_raises(client, recorder):
     recorder.respond(raw_body="<html>maintenance</html>")
     with pytest.raises(GrowattError, match="non-JSON"):
         await client.plants.list()
+
+
+@pytest.mark.parametrize("exc_type", [httpx.ConnectError, httpx.ReadTimeout, httpx.RemoteProtocolError])
+async def test_transport_errors_are_wrapped(exc_type):
+    def boom(request: httpx.Request) -> httpx.Response:
+        raise exc_type("down", request=request)
+
+    async with GrowattClient("t", base_url="https://api.test", transport=httpx.MockTransport(boom)) as c:
+        with pytest.raises(GrowattTransportError) as exc:
+            await c.plants.list()
+    assert exc_type.__name__ in exc.value.reason
+    assert exc.value.path == "/v1/plant/list"
 
 
 async def test_none_params_are_dropped(client, recorder):
@@ -57,11 +72,44 @@ async def test_values_are_stringified(client, recorder):
     assert recorder.last.query["page"] == "2"
 
 
+def test_clean_params_rendering():
+    assert clean_params({"a": 5.0, "b": 3.3, "c": True, "d": False, "e": None, "f": "x", "g": 7}) == {
+        "a": "5",
+        "b": "3.3",
+        "c": "1",
+        "d": "0",
+        "f": "x",
+        "g": "7",
+    }
+    assert clean_params(None) is None
+    assert clean_params({}) is None
+
+
 @pytest.mark.parametrize("payload", [{"error_code": 0}, {"code": 0}, {"code": "0"}, {"data": 1}, [1, 2], "x", None])
 def test_check_api_error_accepts_success_shapes(payload):
     check_api_error(payload, "GET", "/x")
 
 
+async def test_context_manager_closes_transport(recorder):
+    c = GrowattClient("t", base_url="https://api.test", transport=httpx.MockTransport(recorder))
+    assert not c.is_closed
+    async with c:
+        await c.plants.list()
+    assert c.is_closed
+
+
+async def test_from_settings_forwards_everything(recorder):
+    settings = Settings(token="tok", base_url="https://regional.test/", timeout=7.5)
+    c = GrowattClient.from_settings(settings, transport=httpx.MockTransport(recorder))
+    try:
+        await c.plants.list()
+    finally:
+        await c.close()
+    assert recorder.last.headers["token"] == "tok"
+    assert recorder.last.headers["host"] == "regional.test"
+    assert c._http._http.timeout.read == 7.5
+
+
 def test_error_hierarchy():
-    assert issubclass(GrowattAPIError, GrowattError)
-    assert issubclass(GrowattHTTPError, GrowattError)
+    for cls in (GrowattAPIError, GrowattHTTPError, GrowattTransportError):
+        assert issubclass(cls, GrowattError)

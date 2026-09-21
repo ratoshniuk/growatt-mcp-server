@@ -7,6 +7,7 @@ from urllib.parse import parse_qsl
 
 import httpx
 import pytest
+import pytest_asyncio
 
 from growatt_mcp.api import GrowattClient
 from growatt_mcp.server import create_app
@@ -66,7 +67,7 @@ def recorder() -> Recorder:
     return Recorder()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client(recorder: Recorder):
     async with GrowattClient("test-token", base_url="https://api.test", transport=httpx.MockTransport(recorder)) as c:
         yield c
@@ -75,6 +76,11 @@ async def client(recorder: Recorder):
 @pytest.fixture
 def app(client: GrowattClient):
     return create_app(client)
+
+
+@pytest.fixture
+def read_only_app(client: GrowattClient):
+    return create_app(client, read_only=True)
 
 
 async def call_tool(app, name: str, arguments: dict[str, Any] | None = None) -> Any:

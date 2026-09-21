@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from .errors import GrowattAPIError, GrowattError, GrowattHTTPError
+from .errors import GrowattAPIError, GrowattError, GrowattHTTPError, GrowattTransportError
 
 Params = dict[str, Any]
 
@@ -44,16 +44,25 @@ class HttpClient:
             transport=transport,
         )
 
+    @property
+    def is_closed(self) -> bool:
+        return self._http.is_closed
+
     async def close(self) -> None:
         await self._http.aclose()
 
     async def get(self, path: str, params: Params | None = None) -> Any:
-        response = await self._http.get(path, params=_clean(params))
-        return self._handle(response, "GET", path)
+        return await self._request("GET", path, params=params)
 
     async def post(self, path: str, params: Params | None = None, data: Params | None = None) -> Any:
-        response = await self._http.post(path, params=_clean(params), data=_clean(data))
-        return self._handle(response, "POST", path)
+        return await self._request("POST", path, params=params, data=data)
+
+    async def _request(self, method: str, path: str, params: Params | None = None, data: Params | None = None) -> Any:
+        try:
+            response = await self._http.request(method, path, params=clean_params(params), data=clean_params(data))
+        except httpx.HTTPError as exc:
+            raise GrowattTransportError(f"{type(exc).__name__}: {exc}", method, path) from exc
+        return self._handle(response, method, path)
 
     @staticmethod
     def _handle(response: httpx.Response, method: str, path: str) -> Any:
@@ -67,8 +76,19 @@ class HttpClient:
         return payload
 
 
-def _clean(values: Params | None) -> dict[str, str] | None:
-    """Drop ``None`` values and stringify the rest, which is what the API expects."""
+def clean_params(values: Params | None) -> dict[str, str] | None:
+    """Drop ``None`` values and render the rest the way the API expects them.
+
+    Booleans become ``1``/``0``, whole-number floats lose their ``.0``, everything else is ``str()``.
+    """
     if not values:
         return None
-    return {key: str(value) for key, value in values.items() if value is not None}
+    return {key: _render(value) for key, value in values.items() if value is not None}
+
+
+def _render(value: Any) -> str:
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)

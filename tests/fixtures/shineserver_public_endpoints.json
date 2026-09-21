@@ -1,0 +1,389 @@
+{
+  "name": "Growatt ShineServer Public API endpoint contract",
+  "description": "Derived from the community-maintained Postman collection 'ShineServer Public' (workspace gold-water-163355), which documents Growatt's ShineServer Public API. Only HTTP methods, paths and parameter names are kept; no example values, credentials or identifiers.",
+  "source": {
+    "postman_id": "bcc659f1-4ba7-4c5d-a7ad-526d3c8c8fd9",
+    "workspace": "https://www.postman.com/gold-water-163355/workspace/growatt-public",
+    "docs": "https://www.showdoc.com.cn/2598832417617967/11558377939801334"
+  },
+  "captured": "2026-09-21",
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/v1/device/check/sn",
+      "query": [
+        "sn"
+      ],
+      "body": [],
+      "documented_as": [
+        "device / query_device_type"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/device/datalogger/add",
+      "query": [
+        "c_user_id",
+        "plant_id",
+        "sn"
+      ],
+      "body": [],
+      "documented_as": [
+        "device/datalogger / add"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/v1/device/datalogger/list",
+      "query": [
+        "plant_id"
+      ],
+      "body": [],
+      "documented_as": [
+        "device/datalogger / list"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/v1/device/list",
+      "query": [
+        "plant_id"
+      ],
+      "body": [],
+      "documented_as": [
+        "device / list_by_plant_id"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/v1/device/max/max_data_info",
+      "query": [
+        "device_sn"
+      ],
+      "body": [],
+      "documented_as": [
+        "device/max / max_data_info"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/device/max/maxs_data",
+      "query": [
+        "maxs",
+        "pageNum"
+      ],
+      "body": [],
+      "documented_as": [
+        "device/max / queries_many_max"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/device/storage/add",
+      "query": [
+        "c_user_id",
+        "plant_id",
+        "sn"
+      ],
+      "body": [],
+      "documented_as": [
+        "device/storage / add"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/maxSet",
+      "query": [
+        "max_sn",
+        "param1",
+        "param10",
+        "param11",
+        "param12",
+        "param13",
+        "param14",
+        "param15",
+        "param16",
+        "param17",
+        "param18",
+        "param19",
+        "param2",
+        "param3",
+        "param4",
+        "param5",
+        "param6",
+        "param7",
+        "param8",
+        "param9",
+        "type"
+      ],
+      "body": [],
+      "documented_as": [
+        "device/max / max_set"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/plant/add",
+      "query": [
+        "c_user_id",
+        "name",
+        "peak_power"
+      ],
+      "body": [],
+      "documented_as": [
+        "plant / add"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plant/data",
+      "query": [
+        "plant_id"
+      ],
+      "body": [],
+      "documented_as": [
+        "plant / plant_data"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/plant/details",
+      "query": [
+        "plant_id"
+      ],
+      "body": [],
+      "documented_as": [
+        "Interface dispaly/Power station management / [v1/details] 2.6 Get basic information about a power station"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plant/energy",
+      "query": [
+        "end_date",
+        "page",
+        "perpage",
+        "plant_id",
+        "start_date",
+        "time_unit"
+      ],
+      "body": [
+        "page"
+      ],
+      "documented_as": [
+        "plant / plant_history_data",
+        "Interface dispaly/Power station management / [v1/energy] 2.8 Get the historical power generation"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/v1/plant/list",
+      "query": [],
+      "body": [],
+      "documented_as": [
+        "plant / plant_list"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/plant/modify",
+      "query": [
+        "c_user_id",
+        "currency",
+        "name",
+        "plant_id"
+      ],
+      "body": [],
+      "documented_as": [
+        "plant / modify"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/plant/user_plant_list",
+      "query": [
+        "user_name"
+      ],
+      "body": [],
+      "documented_as": [
+        "plant / user_plant_list"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/v1/user/c_user_list",
+      "query": [
+        "page",
+        "perpage"
+      ],
+      "body": [],
+      "documented_as": [
+        "user / c_user_list"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/user/check_user",
+      "query": [
+        "user_name"
+      ],
+      "body": [],
+      "documented_as": [
+        "user / check_user"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/user/modify",
+      "query": [
+        "c_user_id",
+        "mobile"
+      ],
+      "body": [],
+      "documented_as": [
+        "user / modify"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v1/user/user_register",
+      "query": [
+        "user_country",
+        "user_email",
+        "user_name",
+        "user_password",
+        "user_type"
+      ],
+      "body": [],
+      "documented_as": [
+        "user / register"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v4/new-api/queryDeviceInfo",
+      "query": [
+        "deviceSn",
+        "deviceType"
+      ],
+      "body": [
+        "deviceSn",
+        "deviceType",
+        "page"
+      ],
+      "documented_as": [
+        "device/sph / list_all_sph",
+        "device/Batch / queryDeviceInfo",
+        "device/min / min_data_info",
+        "device / query_decive_info",
+        "Interface dispaly/Device management/Device inquiry / [v4/queryDeviceInfo]"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v4/new-api/queryDeviceList",
+      "query": [
+        "page"
+      ],
+      "body": [
+        "page"
+      ],
+      "documented_as": [
+        "device / list_all_device",
+        "Interface dispaly/Device management/Device inquiry / [v4/queryDeviceList] - Get device list"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v4/new-api/queryHistoricalData",
+      "query": [
+        "date",
+        "deviceSn",
+        "deviceType"
+      ],
+      "body": [
+        "date",
+        "deviceSn",
+        "deviceType"
+      ],
+      "documented_as": [
+        "device/sph / query_production_by_date",
+        "device/Batch / queryHistoricalData",
+        "device / query_historical_data",
+        "Interface dispaly/Device management/Device inquiry / [v4/queryHistoricalData] - Get detailed data of a single device for one day"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v4/new-api/queryLastData",
+      "query": [
+        "deviceSn",
+        "deviceType"
+      ],
+      "body": [
+        "deviceSn",
+        "deviceType"
+      ],
+      "documented_as": [
+        "device/Batch / queryLastData",
+        "Interface dispaly/Device management/Device inquiry / [v4/queryLastData] - Batch get the last data of the devices"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v4/new-api/readVppParameter",
+      "query": [],
+      "body": [
+        "deviceSn",
+        "deviceType",
+        "setType"
+      ],
+      "documented_as": [
+        "Interface dispaly/Device management/parameter settings / Read VPP parameters"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v4/new-api/setOnOrOff",
+      "query": [
+        "deviceSn",
+        "deviceType",
+        "value"
+      ],
+      "body": [],
+      "documented_as": [
+        "control / setOnOrOff"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v4/new-api/setPower",
+      "query": [
+        "deviceSn",
+        "deviceType",
+        "value"
+      ],
+      "body": [],
+      "documented_as": [
+        "control / setPower",
+        "control / setActivePower"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/v4/new-api/setVppParameter",
+      "query": [],
+      "body": [
+        "deviceSn",
+        "deviceType",
+        "plant_id",
+        "setType",
+        "value"
+      ],
+      "documented_as": [
+        "device / setVppParameter",
+        "Interface dispaly/Device management/parameter settings / VPP related parameter settings"
+      ]
+    }
+  ]
+}

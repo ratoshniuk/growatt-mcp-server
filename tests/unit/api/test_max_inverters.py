@@ -1,6 +1,6 @@
 import pytest
 
-from growatt_mcp.api.max import MAX_SET_PARAM_SLOTS
+from growatt_mcp.api.max_inverters import MAX_SET_PARAM_SLOTS
 
 
 async def test_data_info(client, recorder):

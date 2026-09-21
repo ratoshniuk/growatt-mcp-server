@@ -1,5 +1,5 @@
 async def test_register(client, recorder):
-    await client.users.register("bob", "pw", "bob@example.test", 1, "Portugal")
+    await client.users.register("bob", "pw", "bob@example.test", 1, "Netherlands")
     c = recorder.last
     assert (c.method, c.path) == ("POST", "/v1/user/user_register")
     assert c.query == {
@@ -7,15 +7,15 @@ async def test_register(client, recorder):
         "user_password": "pw",
         "user_email": "bob@example.test",
         "user_type": "1",
-        "user_country": "Portugal",
+        "user_country": "Netherlands",
     }
 
 
 async def test_modify(client, recorder):
-    await client.users.modify("42", "+351900000000")
+    await client.users.modify("42", "+31000000000")
     c = recorder.last
     assert (c.method, c.path) == ("POST", "/v1/user/modify")
-    assert c.query == {"c_user_id": "42", "mobile": "+351900000000"}
+    assert c.query == {"c_user_id": "42", "mobile": "+31000000000"}
 
 
 async def test_check(client, recorder):

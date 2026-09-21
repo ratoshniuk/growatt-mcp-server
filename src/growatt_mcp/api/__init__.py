@@ -2,6 +2,13 @@
 
 from .client import GrowattClient
 from .contract import API_CONTRACT
-from .errors import GrowattAPIError, GrowattError, GrowattHTTPError
+from .errors import GrowattAPIError, GrowattError, GrowattHTTPError, GrowattTransportError
 
-__all__ = ["API_CONTRACT", "GrowattAPIError", "GrowattClient", "GrowattError", "GrowattHTTPError"]
+__all__ = [
+    "API_CONTRACT",
+    "GrowattAPIError",
+    "GrowattClient",
+    "GrowattError",
+    "GrowattHTTPError",
+    "GrowattTransportError",
+]

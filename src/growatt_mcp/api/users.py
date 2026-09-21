@@ -31,7 +31,7 @@ class UsersAPI(Resource):
             },
         )
 
-    async def modify(self, c_user_id: str, mobile: str) -> Any:
+    async def modify(self, c_user_id: str | int, mobile: str) -> Any:
         """Update an end-user's mobile number."""
         return await self._http.post("/v1/user/modify", params={"c_user_id": c_user_id, "mobile": mobile})
 

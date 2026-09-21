@@ -1,21 +1,21 @@
-"""Contract tests: the client must only send requests that exist in the pinned Postman collection.
+"""Contract tests: the client must only send requests that exist in the pinned API contract.
 
-1. The pinned collection file is byte-for-byte the one recorded in ``growatt_mcp.api.contract``.
-   Updating the collection without updating the pin fails loudly, so API changes get reviewed.
-2. Every request the client can send (method, path, parameter names) appears in the collection.
-   Renamed or removed endpoints and parameters are caught before they reach a user.
-3. Every endpoint in the collection is implemented by the client, so additions on Growatt's side
-   surface as a failing test instead of going unnoticed.
+1. The pinned fixture is byte-for-byte the one recorded in ``growatt_mcp.api.contract``.
+   Updating the fixture without updating the pin fails loudly, so API changes get reviewed.
+2. Every request the client can send (method, path, parameter names and whether they travel in the
+   query string or the form body) appears in the fixture. Renamed or removed endpoints and parameters
+   are caught before they reach a user.
+3. Every endpoint in the fixture is implemented by the client, so additions on Growatt's side surface
+   as a failing test instead of going unnoticed.
+4. The fixture contains parameter *names* only: no values, so no credentials or identifiers.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import re
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import pytest
 
@@ -27,44 +27,14 @@ FIXTURE = ROOT / API_CONTRACT["fixture"]
 Endpoint = tuple[str, str]
 
 
-# --------------------------------------------------------------------------- collection parsing
-
-
-def _iter_requests(items):
-    for item in items:
-        if "item" in item:
-            yield from _iter_requests(item["item"])
-        else:
-            yield item
-
-
-def _endpoint_path(url) -> str | None:
-    raw = url["raw"] if isinstance(url, dict) else url
-    parts = urlsplit(raw.replace("{{baseUrl}}", "https://host"))
-    return parts.path if parts.netloc and parts.path else None
-
-
-def load_collection() -> dict[Endpoint, set[str]]:
-    """Map (METHOD, /path) -> union of accepted parameter names (query + urlencoded body)."""
+def load_contract() -> dict[Endpoint, dict[str, set[str]]]:
     data = json.loads(FIXTURE.read_text())
-    endpoints: dict[Endpoint, set[str]] = {}
-    for item in _iter_requests(data["item"]):
-        req = item["request"]
-        path = _endpoint_path(req["url"])
-        if path is None:
-            continue
-        params: set[str] = set()
-        if isinstance(req["url"], dict):
-            params |= {q["key"] for q in req["url"].get("query") or []}
-        body = req.get("body") or {}
-        params |= {p["key"] for p in body.get("urlencoded") or body.get("formdata") or []}
-        endpoints.setdefault((req["method"].upper(), path), set()).update(params)
-    return endpoints
+    return {(e["method"], e["path"]): {"query": set(e["query"]), "body": set(e["body"])} for e in data["endpoints"]}
 
 
 @pytest.fixture(scope="module")
-def collection() -> dict[Endpoint, set[str]]:
-    return load_collection()
+def contract() -> dict[Endpoint, dict[str, set[str]]]:
+    return load_contract()
 
 
 # --------------------------------------------------------------------------- pin checks
@@ -73,49 +43,34 @@ def collection() -> dict[Endpoint, set[str]]:
 def test_fixture_matches_pinned_sha256():
     actual = hashlib.sha256(FIXTURE.read_bytes()).hexdigest()
     assert actual == API_CONTRACT["sha256"], (
-        "The Postman collection fixture changed. Review the API diff, then update "
+        "The API contract fixture changed. Review the diff, then update "
         "API_CONTRACT['sha256'] and API_CONTRACT['captured'] in src/growatt_mcp/api/contract.py."
     )
 
 
-def test_fixture_matches_pinned_postman_id():
+def test_fixture_provenance_matches_pin():
     data = json.loads(FIXTURE.read_text())
-    assert data["info"]["_postman_id"] == API_CONTRACT["postman_id"]
+    assert data["source"]["postman_id"] == API_CONTRACT["postman_id"]
+    assert data["captured"] == API_CONTRACT["captured"]
 
 
-def test_fixture_contains_no_real_token():
-    """Growatt tokens are 32 lowercase base36 characters. Only the ``{{token}}`` variable may appear."""
-    text = FIXTURE.read_text()
-    data = json.loads(text)
-    for item in _iter_requests(data["item"]):
-        for header in item["request"].get("header") or []:
-            if header.get("key", "").lower() == "token":
-                assert header.get("value") == "{{token}}", f"literal token in request {item['name']!r}"
-    for variable in data.get("variable") or []:
-        if variable.get("key") == "token":
-            assert variable.get("value") == "<token>"
-    suspicious = [
-        m.group(0)
-        for m in re.finditer(r"\b[a-z0-9]{32}\b", text)
-        if re.search(r"[a-z]", m.group(0))  # a bare 32-digit number is not a token
-        and "showdoc.com.cn/p/" not in text[max(0, m.start() - 40) : m.start()]
-    ]
-    assert not suspicious, f"fixture contains something that looks like an API token: {suspicious}"
+def test_fixture_holds_names_only():
+    """Only methods, paths and parameter names: nothing that could be a credential or an identifier."""
+    data = json.loads(FIXTURE.read_text())
+    for endpoint in data["endpoints"]:
+        assert set(endpoint) == {"method", "path", "query", "body", "documented_as"}
+        assert endpoint["path"].startswith("/v")
+        for name in endpoint["query"] + endpoint["body"]:
+            assert name.replace("_", "").isalnum(), name
+            assert len(name) < 20, name
 
 
-def test_fixture_contains_no_hardcoded_identifiers():
-    """Serial numbers and plant ids must be Postman variables or placeholders, not real devices."""
-    text = FIXTURE.read_text()
-    for pattern in (r"deviceSn=(?!\{\{)[A-Z0-9]{10}", r"plant_id=(?!\{\{)\d{5,}", r'"value": "[A-Z0-9]{10}"'):
-        assert re.search(pattern, text) is None, f"hardcoded identifier matches {pattern!r}"
+# --------------------------------------------------------------------------- client vs contract
 
-
-# --------------------------------------------------------------------------- client vs collection
-
-# Every public client method with representative arguments. Keep this in sync with the api package;
-# ``test_every_client_method_is_covered`` fails if a method is added without an entry here.
+# Every public client method with representative arguments. ``test_every_client_method_is_covered``
+# fails if a method is added to the api package without an entry here.
 CLIENT_CALLS: dict[str, Callable[[GrowattClient], Awaitable[object]]] = {
-    "users.register": lambda c: c.users.register("u", "p", "e", 1, "PT"),
+    "users.register": lambda c: c.users.register("u", "p", "e", 1, "NL"),
     "users.modify": lambda c: c.users.modify("1", "m"),
     "users.check": lambda c: c.users.check("u"),
     "users.list": lambda c: c.users.list(),
@@ -146,32 +101,36 @@ CLIENT_CALLS: dict[str, Callable[[GrowattClient], Awaitable[object]]] = {
 
 
 @pytest.mark.parametrize("name", sorted(CLIENT_CALLS))
-async def test_client_request_exists_in_collection(name, client, recorder, collection):
+async def test_client_request_matches_contract(name, client, recorder, contract):
     await CLIENT_CALLS[name](client)
     assert len(recorder.calls) == 1
     call = recorder.last
     endpoint = (call.method, call.path)
-    assert endpoint in collection, f"{name}: {call.method} {call.path} is not in the Postman collection"
-    unknown = set(call.params) - collection[endpoint]
-    assert not unknown, f"{name}: parameters {sorted(unknown)} are not documented for {call.method} {call.path}"
+    assert endpoint in contract, f"{name}: {call.method} {call.path} is not in the API contract"
+    for placement in ("query", "body"):
+        sent = set(getattr(call, placement))
+        unknown = sent - contract[endpoint][placement]
+        assert not unknown, (
+            f"{name}: {placement} parameters {sorted(unknown)} not documented for {call.method} {call.path}"
+        )
 
 
-async def test_every_collection_endpoint_is_implemented(client, recorder, collection):
+async def test_every_contract_endpoint_is_implemented(client, recorder, contract):
     for call in CLIENT_CALLS.values():
         await call(client)
     implemented = {(c.method, c.path) for c in recorder.calls}
-    missing = set(collection) - implemented
-    assert not missing, f"endpoints in the collection that the client does not implement: {sorted(missing)}"
+    missing = set(contract) - implemented
+    assert not missing, f"endpoints in the contract that the client does not implement: {sorted(missing)}"
 
 
-def test_every_client_method_is_covered():
+async def test_every_client_method_is_covered():
     """Every public coroutine on every resource must appear in CLIENT_CALLS."""
-    client = GrowattClient("t")
-    expected = set()
-    for group in ("users", "plants", "devices", "control", "max"):
-        resource = getattr(client, group)
-        for attr in dir(resource):
-            if not attr.startswith("_") and callable(getattr(resource, attr)):
-                expected.add(f"{group}.{attr}")
+    async with GrowattClient("t") as client:
+        expected = set()
+        for group in ("users", "plants", "devices", "control", "max"):
+            resource = getattr(client, group)
+            for attr in dir(resource):
+                if not attr.startswith("_") and callable(getattr(resource, attr)):
+                    expected.add(f"{group}.{attr}")
     covered = {name.split("(")[0] for name in CLIENT_CALLS}
     assert expected == covered

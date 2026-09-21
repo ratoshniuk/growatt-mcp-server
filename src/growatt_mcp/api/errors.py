@@ -9,6 +9,16 @@ class GrowattError(Exception):
     """Base class for every error raised by the client."""
 
 
+class GrowattTransportError(GrowattError):
+    """The request never produced an HTTP response: DNS, connection, TLS or timeout failure."""
+
+    def __init__(self, reason: str, method: str, path: str) -> None:
+        self.reason = reason
+        self.method = method
+        self.path = path
+        super().__init__(f"{method} {path} failed: {reason}")
+
+
 class GrowattHTTPError(GrowattError):
     """The API answered with a non-2xx HTTP status."""
 
@@ -17,7 +27,7 @@ class GrowattHTTPError(GrowattError):
         self.body = body
         self.method = method
         self.path = path
-        super().__init__(f"{method} {path} failed with HTTP {status_code}: {body[:200]}")
+        super().__init__(f"{method} {path} failed with HTTP {status_code}")
 
 
 class GrowattAPIError(GrowattError):

@@ -10,7 +10,7 @@ from ..config import DEFAULT_BASE_URL
 from .control import ControlAPI
 from .devices import DevicesAPI
 from .http import HttpClient
-from .max import MaxAPI
+from .max_inverters import MaxAPI
 from .plants import PlantsAPI
 from .users import UsersAPI
 
@@ -45,6 +45,10 @@ class GrowattClient:
     @classmethod
     def from_settings(cls, settings: Settings, transport: httpx.AsyncBaseTransport | None = None) -> GrowattClient:
         return cls(token=settings.token, base_url=settings.base_url, timeout=settings.timeout, transport=transport)
+
+    @property
+    def is_closed(self) -> bool:
+        return self._http.is_closed
 
     async def close(self) -> None:
         await self._http.close()

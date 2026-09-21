@@ -34,12 +34,13 @@ The last four tools change the state of your inverter. Only enable them for an a
 
 The token is issued in the **ShinePhone** mobile app (the same app you use to monitor the plant). No developer registration is needed.
 
-1. Open ShinePhone and log in with your Growatt account. Tap **Me** in the bottom bar.
+1. Open ShinePhone, log in with your Growatt account and tap **Me** in the bottom bar.
 2. On the **Me** screen, tap your username at the top.
 3. In the profile, tap **API Token** (last row).
-4. Tap the copy icon next to the token. Make sure **Use Status** is switched on, otherwise the API rejects the token.
+4. Tap the copy icon next to the token value.
+5. Make sure **Use Status** is switched on, otherwise the API rejects the token.
 
-| 1. Dashboard → Me | 2. Tap your username | 3. Tap API Token | 4. Copy the token |
+| Step 1 | Step 2 | Step 3 | Steps 4–5 |
 |---|---|---|---|
 | ![Dashboard](docs/images/1-dashboard.jpg) | ![Me screen](docs/images/2-me.jpg) | ![Profile](docs/images/3-profile.jpg) | ![API Token](docs/images/4-api-token.jpg) |
 

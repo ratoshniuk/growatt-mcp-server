@@ -287,6 +287,16 @@ GROWATT_TOKEN=your_token npx @modelcontextprotocol/inspector \
 - **Rate limits.** The Growatt API throttles aggressive polling. Prefer `get_device_history` (one call per day) over repeated `get_device_last_data`.
 - **Date ranges.** `get_plant_energy` accepts at most 7 days per request; page through for longer periods.
 
+## API contract and versioning
+
+Growatt does not version the ShineServer Public API, and the server has no endpoint to report which revision it is talking to. This project pins the API contract instead:
+
+- `tests/fixtures/shineserver_public.postman_collection.json` is the Postman collection published by Growatt (tokens stripped).
+- `src/growatt_mcp/api_contract.py` records the collection's Postman id, capture date and SHA-256.
+- `tests/test_api_contract.py` sends every client request through a mock transport and checks that its method, path and parameter names exist in the collection. It also fails if the collection contains endpoints the client neither implements nor lists as intentionally skipped, and if the fixture changes without the pin being updated.
+
+To pick up a newer collection, replace the fixture, run `uv run pytest`, review what changed, then update the pin. The failing tests tell you exactly which endpoints or parameters moved.
+
 ## Development
 
 ```bash

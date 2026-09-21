@@ -1,5 +1,7 @@
 # Growatt MCP Server
 
+[![CI](https://github.com/ratoshniuk/growatt-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/ratoshniuk/growatt-mcp-server/actions/workflows/ci.yml)
+
 An [MCP](https://modelcontextprotocol.io) server that lets AI assistants (Claude Code, Claude Desktop, Cursor, and any other MCP client) read and control your Growatt solar installation through the official Growatt ShineServer Public API.
 
 You can ask things like "how much did my panels generate today?", "what is the battery SOC?", "compare today with yesterday", or "set the discharge cut-off to 15%", and the assistant will call the right API for you.
@@ -73,7 +75,16 @@ GROWATT_TOKEN=your_token growatt-mcp
 
 ## Connecting to an MCP client
 
-Replace `/absolute/path/to/growatt-mcp` with the directory you cloned into.
+The server speaks MCP over stdio, so it works with any MCP-capable client. There are two ways to launch it:
+
+- **From a local clone** (recommended if you want to edit the code):
+  `uv --directory /absolute/path/to/growatt-mcp run growatt-mcp`
+- **Straight from GitHub, no clone** (uvx downloads and caches it):
+  `uvx --from git+https://github.com/ratoshniuk/growatt-mcp-server growatt-mcp`
+
+The examples below use the local-clone form. To use the no-clone form, replace `"command": "uv"` with `"command": "uvx"` and the args with `["--from", "git+https://github.com/ratoshniuk/growatt-mcp-server", "growatt-mcp"]`. Some GUI clients don't inherit your shell `PATH`; if the server fails to start, use the full path from `which uv` or `which uvx`.
+
+Restart the client after saving its configuration.
 
 ### Claude Code
 
@@ -103,9 +114,156 @@ Edit `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/
 }
 ```
 
-### Cursor / other clients
+### Cursor
 
-Use the same `command`, `args` and `env` as above in the client's MCP configuration. The server uses the stdio transport.
+Settings → MCP → Add new global MCP server, or edit `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (per project). Same format as Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "growatt": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/growatt-mcp", "run", "growatt-mcp"],
+      "env": { "GROWATT_TOKEN": "your_token" }
+    }
+  }
+}
+```
+
+### VS Code (GitHub Copilot agent mode)
+
+Create `.vscode/mcp.json` in your workspace, or run **MCP: Add Server** from the command palette. VS Code can prompt for the token so it is not stored in plain text:
+
+```json
+{
+  "inputs": [
+    { "id": "growatt-token", "type": "promptString", "description": "Growatt API token", "password": true }
+  ],
+  "servers": {
+    "growatt": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/growatt-mcp", "run", "growatt-mcp"],
+      "env": { "GROWATT_TOKEN": "${input:growatt-token}" }
+    }
+  }
+}
+```
+
+### Windsurf
+
+Edit `~/.codeium/windsurf/mcp_config.json` (or Settings → Cascade → MCP Servers → Manage):
+
+```json
+{
+  "mcpServers": {
+    "growatt": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/growatt-mcp", "run", "growatt-mcp"],
+      "env": { "GROWATT_TOKEN": "your_token" }
+    }
+  }
+}
+```
+
+### Cline (VS Code extension)
+
+Open the MCP Servers panel → Configure MCP Servers, which opens `cline_mcp_settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "growatt": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/growatt-mcp", "run", "growatt-mcp"],
+      "env": { "GROWATT_TOKEN": "your_token" },
+      "disabled": false
+    }
+  }
+}
+```
+
+### Zed
+
+Add to `~/.config/zed/settings.json`:
+
+```json
+{
+  "context_servers": {
+    "growatt": {
+      "source": "custom",
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/growatt-mcp", "run", "growatt-mcp"],
+      "env": { "GROWATT_TOKEN": "your_token" }
+    }
+  }
+}
+```
+
+### OpenAI Codex CLI
+
+Codex uses TOML. Add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.growatt]
+command = "uv"
+args = ["--directory", "/absolute/path/to/growatt-mcp", "run", "growatt-mcp"]
+env = { GROWATT_TOKEN = "your_token" }
+```
+
+### Gemini CLI
+
+Add to `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "growatt": {
+      "command": "uv",
+      "args": ["--directory", "/absolute/path/to/growatt-mcp", "run", "growatt-mcp"],
+      "env": { "GROWATT_TOKEN": "your_token" }
+    }
+  }
+}
+```
+
+### OpenCode
+
+This repository ships an `opencode.json`, so launching `opencode` from a clone picks the server up automatically. It reads the token from the `GROWATT_TOKEN` environment variable. For a global setup, add the same block to `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "mcp": {
+    "growatt": {
+      "type": "local",
+      "command": ["uv", "--directory", "/absolute/path/to/growatt-mcp", "run", "growatt-mcp"],
+      "environment": { "GROWATT_TOKEN": "your_token" }
+    }
+  }
+}
+```
+
+### Continue
+
+Add to `~/.continue/config.yaml`:
+
+```yaml
+mcpServers:
+  - name: growatt
+    command: uv
+    args: ["--directory", "/absolute/path/to/growatt-mcp", "run", "growatt-mcp"]
+    env:
+      GROWATT_TOKEN: your_token
+```
+
+### Any other client, or testing without a client
+
+Point the client at the stdio command above. To poke at the tools interactively, use the MCP Inspector:
+
+```bash
+GROWATT_TOKEN=your_token npx @modelcontextprotocol/inspector \
+  uv --directory /absolute/path/to/growatt-mcp run growatt-mcp
+```
 
 ## Configuration
 
@@ -132,10 +290,14 @@ Use the same `command`, `args` and `env` as above in the client's MCP configurat
 ## Development
 
 ```bash
-uv sync
-uv run growatt-mcp            # run the server
-uv run python -c "import growatt_mcp"   # import check
+uv sync --group dev
+uv run growatt-mcp        # run the server
+uv run ruff check .       # lint
+uv run ruff format .      # format
+uv run pytest             # tests
 ```
+
+CI runs lint, format check, tests and a server start-up smoke test on Python 3.11 to 3.13 for every push and pull request.
 
 Source layout:
 

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "growatt": {
+      "type": "local",
+      "command": ["uv", "run", "growatt-mcp"],
+      "environment": {
+        "GROWATT_TOKEN": "{env:GROWATT_TOKEN}"
+      },
+      "enabled": true,
+      "timeout": 30000
+    }
+  }
+}

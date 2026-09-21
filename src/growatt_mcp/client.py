@@ -52,14 +52,17 @@ class GrowattClient:
         page: int = 1,
         perpage: int = 30,
     ) -> Any:
-        return await self._get("/v1/plant/energy", params={
-            "plant_id": plant_id,
-            "start_date": start_date,
-            "end_date": end_date,
-            "time_unit": time_unit,
-            "page": str(page),
-            "perpage": str(perpage),
-        })
+        return await self._get(
+            "/v1/plant/energy",
+            params={
+                "plant_id": plant_id,
+                "start_date": start_date,
+                "end_date": end_date,
+                "time_unit": time_unit,
+                "page": str(page),
+                "perpage": str(perpage),
+            },
+        )
 
     async def device_list(self, plant_id: str | None = None, page: int = 1) -> Any:
         if plant_id:
@@ -67,52 +70,73 @@ class GrowattClient:
         return await self._post("/v4/new-api/queryDeviceList", data={"page": str(page)})
 
     async def device_info(self, device_sn: str, device_type: str) -> Any:
-        return await self._post("/v4/new-api/queryDeviceInfo", data={
-            "deviceSn": device_sn,
-            "deviceType": device_type,
-        })
+        return await self._post(
+            "/v4/new-api/queryDeviceInfo",
+            data={
+                "deviceSn": device_sn,
+                "deviceType": device_type,
+            },
+        )
 
     async def device_last_data(self, device_sn: str, device_type: str) -> Any:
-        return await self._post("/v4/new-api/queryLastData", data={
-            "deviceSn": device_sn,
-            "deviceType": device_type,
-        })
+        return await self._post(
+            "/v4/new-api/queryLastData",
+            data={
+                "deviceSn": device_sn,
+                "deviceType": device_type,
+            },
+        )
 
     async def device_historical_data(self, device_sn: str, device_type: str, date: str) -> Any:
-        return await self._post("/v4/new-api/queryHistoricalData", data={
-            "deviceSn": device_sn,
-            "deviceType": device_type,
-            "date": date,
-        })
+        return await self._post(
+            "/v4/new-api/queryHistoricalData",
+            data={
+                "deviceSn": device_sn,
+                "deviceType": device_type,
+                "date": date,
+            },
+        )
 
     async def device_check_sn(self, sn: str) -> Any:
         return await self._get("/v1/device/check/sn", params={"sn": sn})
 
     async def set_on_off(self, device_sn: str, device_type: str, value: int) -> Any:
-        return await self._post("/v4/new-api/setOnOrOff", params={
-            "deviceSn": device_sn,
-            "deviceType": device_type,
-            "value": str(value),
-        })
+        return await self._post(
+            "/v4/new-api/setOnOrOff",
+            params={
+                "deviceSn": device_sn,
+                "deviceType": device_type,
+                "value": str(value),
+            },
+        )
 
     async def set_power(self, device_sn: str, device_type: str, value: int) -> Any:
-        return await self._post("/v4/new-api/setPower", params={
-            "deviceSn": device_sn,
-            "deviceType": device_type,
-            "value": str(value),
-        })
+        return await self._post(
+            "/v4/new-api/setPower",
+            params={
+                "deviceSn": device_sn,
+                "deviceType": device_type,
+                "value": str(value),
+            },
+        )
 
     async def read_vpp_parameter(self, device_sn: str, device_type: str, set_type: str) -> Any:
-        return await self._post("/v4/new-api/readVppParameter", data={
-            "deviceSn": device_sn,
-            "deviceType": device_type,
-            "setType": set_type,
-        })
+        return await self._post(
+            "/v4/new-api/readVppParameter",
+            data={
+                "deviceSn": device_sn,
+                "deviceType": device_type,
+                "setType": set_type,
+            },
+        )
 
     async def set_vpp_parameter(self, device_sn: str, device_type: str, set_type: str, value: str) -> Any:
-        return await self._post("/v4/new-api/setVppParameter", data={
-            "deviceSn": device_sn,
-            "deviceType": device_type,
-            "setType": set_type,
-            "value": value,
-        })
+        return await self._post(
+            "/v4/new-api/setVppParameter",
+            data={
+                "deviceSn": device_sn,
+                "deviceType": device_type,
+                "setType": set_type,
+                "value": value,
+            },
+        )

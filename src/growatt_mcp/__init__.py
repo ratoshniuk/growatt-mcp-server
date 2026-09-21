@@ -5,8 +5,8 @@ import sys
 
 from mcp.server.fastmcp import FastMCP
 
-from .client import GrowattClient
 from . import tools
+from .client import GrowattClient
 
 
 def main() -> None:

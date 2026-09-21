@@ -39,7 +39,7 @@ The last four tools change the state of your inverter. Only enable them for an a
 ## Installation
 
 ```bash
-git clone <this repository> growatt-mcp
+git clone https://github.com/ratoshniuk/growatt-mcp-server-python.git growatt-mcp
 cd growatt-mcp
 uv sync
 ```

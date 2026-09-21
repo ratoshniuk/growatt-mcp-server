@@ -84,14 +84,30 @@ def test_fixture_matches_pinned_postman_id():
 
 
 def test_fixture_contains_no_real_token():
+    """Growatt tokens are 32 lowercase base36 characters. Only the ``{{token}}`` variable may appear."""
     text = FIXTURE.read_text()
-    # 32 hex chars is the Growatt token format; ignore showdoc page ids, which look the same but live in URLs.
+    data = json.loads(text)
+    for item in _iter_requests(data["item"]):
+        for header in item["request"].get("header") or []:
+            if header.get("key", "").lower() == "token":
+                assert header.get("value") == "{{token}}", f"literal token in request {item['name']!r}"
+    for variable in data.get("variable") or []:
+        if variable.get("key") == "token":
+            assert variable.get("value") == "<token>"
     suspicious = [
         m.group(0)
-        for m in re.finditer(r"\b[0-9a-f]{32}\b", text)
-        if "showdoc.com.cn/p/" not in text[max(0, m.start() - 40) : m.start()]
+        for m in re.finditer(r"\b[a-z0-9]{32}\b", text)
+        if re.search(r"[a-z]", m.group(0))  # a bare 32-digit number is not a token
+        and "showdoc.com.cn/p/" not in text[max(0, m.start() - 40) : m.start()]
     ]
     assert not suspicious, f"fixture contains something that looks like an API token: {suspicious}"
+
+
+def test_fixture_contains_no_hardcoded_identifiers():
+    """Serial numbers and plant ids must be Postman variables or placeholders, not real devices."""
+    text = FIXTURE.read_text()
+    for pattern in (r"deviceSn=(?!\{\{)[A-Z0-9]{10}", r"plant_id=(?!\{\{)\d{5,}", r'"value": "[A-Z0-9]{10}"'):
+        assert re.search(pattern, text) is None, f"hardcoded identifier matches {pattern!r}"
 
 
 # --------------------------------------------------------------------------- client vs collection

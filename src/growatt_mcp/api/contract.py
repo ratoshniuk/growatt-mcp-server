@@ -17,6 +17,6 @@ API_CONTRACT = {
     "postman_id": "bcc659f1-4ba7-4c5d-a7ad-526d3c8c8fd9",
     "docs": "https://www.showdoc.com.cn/2598832417617967/11558377939801334",
     "captured": "2026-09-21",
-    "sha256": "41a5595b09855b9ab83b15d9f9e84b96f226d52659b8d712ba903dd1cd8d285d",
+    "sha256": "015240502c69382e75ccd1f6804f2f23cce0d9594940eda6b7e498df8b777481",
     "fixture": "tests/fixtures/shineserver_public.postman_collection.json",
 }

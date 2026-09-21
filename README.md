@@ -49,7 +49,7 @@ Keep the token private: it grants full read and write access to your installatio
 ## Installation
 
 ```bash
-git clone https://github.com/ratoshniuk/growatt-mcp-server-python.git growatt-mcp
+git clone https://github.com/ratoshniuk/growatt-mcp-server.git growatt-mcp
 cd growatt-mcp
 uv sync
 ```
